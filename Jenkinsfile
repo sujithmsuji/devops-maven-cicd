@@ -40,7 +40,7 @@ pipeline {
                               --region eu-west-1
                         ''',
                         returnStdout: true
-                    )
+                    ).trim()
 
                     echo "Discovered App 1 IP: ${env.APP1_IP}"
                     echo "Discovered App 2 IP: ${env.APP2_IP}"
@@ -64,9 +64,21 @@ pipeline {
             }
         }
 
-        stage('Create ZIP') {
+        stage('Verify Package') {
             steps {
-                sh 'zip -j devops-project.zip index.html'
+                sh '''
+                    echo "Build artifacts:"
+                    ls -lh target/
+
+                    echo "Package contents:"
+                    unzip -l target/devops-project-1.0.zip
+                '''
+            }
+        }
+
+        stage('Archive Package') {
+            steps {
+                archiveArtifacts artifacts: 'target/devops-project-1.0.zip', fingerprint: true
             }
         }
 
@@ -78,21 +90,17 @@ pipeline {
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        unzip -p devops-project.zip index.html > webserver1.html
-
                         scp -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
                             -i "$SSH_KEY" \
-                            webserver1.html \
-                            "$SSH_USER@$APP1_IP:/tmp/webserver1.html"
+                            target/devops-project-1.0.zip \
+                            "$SSH_USER@$APP1_IP:/tmp/devops-project-1.0.zip"
 
                         ssh -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
                             -i "$SSH_KEY" \
                             "$SSH_USER@$APP1_IP" \
-                            'sudo mv /tmp/webserver1.html /var/www/html/webserver1.html && sudo chmod 644 /var/www/html/webserver1.html'
-
-                        rm -f webserver1.html
+                            'sudo rm -rf /var/www/html/application && sudo mkdir -p /var/www/html/application && sudo unzip -o /tmp/devops-project-1.0.zip -d /var/www/html && sudo chmod -R 755 /var/www/html/application && sudo rm -f /tmp/devops-project-1.0.zip'
                     '''
                 }
             }
@@ -106,30 +114,54 @@ pipeline {
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        unzip -p devops-project.zip index.html > webserver2.html
-
                         scp -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
                             -i "$SSH_KEY" \
-                            webserver2.html \
-                            "$SSH_USER@$APP2_IP:/tmp/webserver2.html"
+                            target/devops-project-1.0.zip \
+                            "$SSH_USER@$APP2_IP:/tmp/devops-project-1.0.zip"
 
                         ssh -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
                             -i "$SSH_KEY" \
                             "$SSH_USER@$APP2_IP" \
-                            'sudo mv /tmp/webserver2.html /usr/share/nginx/html/webserver2.html && sudo chmod 644 /usr/share/nginx/html/webserver2.html'
-
-                        rm -f webserver2.html
+                            'sudo rm -rf /usr/share/nginx/html/application && sudo mkdir -p /usr/share/nginx/html/application && sudo unzip -o /tmp/devops-project-1.0.zip -d /usr/share/nginx/html && sudo chmod -R 755 /usr/share/nginx/html/application && sudo rm -f /tmp/devops-project-1.0.zip'
                     '''
                 }
             }
         }
-    }
 
-    post {
-        success {
-            archiveArtifacts artifacts: 'devops-project.zip', fingerprint: true
+        stage('Verify Deployment') {
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'app1-ubuntu-ssh',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            -o UserKnownHostsFile=/dev/null \
+                            -i "$SSH_KEY" \
+                            "$SSH_USER@$APP1_IP" \
+                            'sudo test -f /var/www/html/application/index.html'
+                    '''
+                }
+
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'app2-amazonlinux-ssh',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            -o UserKnownHostsFile=/dev/null \
+                            -i "$SSH_KEY" \
+                            "$SSH_USER@$APP2_IP" \
+                            'sudo test -f /usr/share/nginx/html/application/index.html'
+                    '''
+                }
+
+                echo 'Deployment verification successful on both application servers.'
+            }
         }
     }
 }
