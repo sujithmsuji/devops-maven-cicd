@@ -3,6 +3,7 @@ pipeline {
 
     options {
         disableConcurrentBuilds()
+        timeout(time: 20, unit: 'MINUTES')
     }
 
     tools {
@@ -11,6 +12,7 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = 'eu-west-1'
+        AWS_PAGER = ''
     }
 
     stages {
@@ -20,7 +22,7 @@ pipeline {
                 script {
                     env.APP1_IP = sh(
                         script: '''
-                            aws ec2 describe-instances \
+                            timeout 30 aws ec2 describe-instances \
                               --filters "Name=tag:Name,Values=ubuntu-private-app1" \
                                         "Name=instance-state-name,Values=running" \
                               --query "Reservations[].Instances[].PrivateIpAddress" \
@@ -32,7 +34,7 @@ pipeline {
 
                     env.APP2_IP = sh(
                         script: '''
-                            aws ec2 describe-instances \
+                            timeout 30 aws ec2 describe-instances \
                               --filters "Name=tag:Name,Values=amazon-linux-private-app2" \
                                         "Name=instance-state-name,Values=running" \
                               --query "Reservations[].Instances[].PrivateIpAddress" \
@@ -132,6 +134,7 @@ pipeline {
 
         stage('Verify Deployment') {
             steps {
+
                 withCredentials([sshUserPrivateKey(
                     credentialsId: 'app1-ubuntu-ssh',
                     keyFileVariable: 'SSH_KEY',
