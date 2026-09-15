@@ -7,9 +7,43 @@
     <groupId>com.sujith.devops</groupId>
     <artifactId>devops-maven-cicd</artifactId>
     <version>1.0</version>
-    <packaging>jar</packaging>
 
     <name>Sujith DevOps CI/CD Project</name>
-    <description>Static web application deployed using Jenkins and Nginx</description>
+    <description>Static HTML application packaged for Nginx deployment</description>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.7.1</version>
+
+                <configuration>
+                    <finalName>devops-project-${project.version}</finalName>
+                    <appendAssemblyId>false</appendAssemblyId>
+
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                    </archive>
+
+                    <descriptors>
+                        <descriptor>src/assembly/package.xml</descriptor>
+                    </descriptors>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <id>make-package</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
