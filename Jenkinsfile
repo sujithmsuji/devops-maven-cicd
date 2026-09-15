@@ -17,39 +17,14 @@ pipeline {
 
     stages {
 
-        stage('Discover Application Servers') {
+        stage('Set Application Servers') {
             steps {
                 script {
-                    env.APP1_IP = sh(
-                        script: '''
-                            timeout 30 aws ec2 describe-instances \
-                              --filters "Name=tag:Name,Values=ubuntu-private-app1" \
-                                        "Name=instance-state-name,Values=running" \
-                              --query "Reservations[].Instances[].PrivateIpAddress" \
-                              --output text \
-                              --region eu-west-1
-                        ''',
-                        returnStdout: true
-                    ).trim()
+                    env.APP1_IP = '10.0.3.226'
+                    env.APP2_IP = '10.0.4.68'
 
-                    env.APP2_IP = sh(
-                        script: '''
-                            timeout 30 aws ec2 describe-instances \
-                              --filters "Name=tag:Name,Values=amazon-linux-private-app2" \
-                                        "Name=instance-state-name,Values=running" \
-                              --query "Reservations[].Instances[].PrivateIpAddress" \
-                              --output text \
-                              --region eu-west-1
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Discovered App 1 IP: ${env.APP1_IP}"
-                    echo "Discovered App 2 IP: ${env.APP2_IP}"
-
-                    if (!env.APP1_IP || !env.APP2_IP) {
-                        error "Could not discover one or both application servers."
-                    }
+                    echo "App 1 IP: ${env.APP1_IP}"
+                    echo "App 2 IP: ${env.APP2_IP}"
                 }
             }
         }
@@ -102,7 +77,11 @@ pipeline {
                             -o UserKnownHostsFile=/dev/null \
                             -i "$SSH_KEY" \
                             "$SSH_USER@$APP1_IP" \
-                            'sudo rm -rf /var/www/html/application && sudo mkdir -p /var/www/html/application && sudo unzip -o /tmp/devops-project-1.0.zip -d /var/www/html && sudo chmod -R 755 /var/www/html/application && sudo rm -f /tmp/devops-project-1.0.zip'
+                            'sudo rm -rf /var/www/html/application && \
+                             sudo mkdir -p /var/www/html/application && \
+                             sudo unzip -o /tmp/devops-project-1.0.zip -d /var/www/html && \
+                             sudo chmod -R 755 /var/www/html/application && \
+                             sudo rm -f /tmp/devops-project-1.0.zip'
                     '''
                 }
             }
@@ -126,7 +105,11 @@ pipeline {
                             -o UserKnownHostsFile=/dev/null \
                             -i "$SSH_KEY" \
                             "$SSH_USER@$APP2_IP" \
-                            'sudo rm -rf /usr/share/nginx/html/application && sudo mkdir -p /usr/share/nginx/html/application && sudo unzip -o /tmp/devops-project-1.0.zip -d /usr/share/nginx/html && sudo chmod -R 755 /usr/share/nginx/html/application && sudo rm -f /tmp/devops-project-1.0.zip'
+                            'sudo rm -rf /usr/share/nginx/html/application && \
+                             sudo mkdir -p /usr/share/nginx/html/application && \
+                             sudo unzip -o /tmp/devops-project-1.0.zip -d /usr/share/nginx/html && \
+                             sudo chmod -R 755 /usr/share/nginx/html/application && \
+                             sudo rm -f /tmp/devops-project-1.0.zip'
                     '''
                 }
             }
